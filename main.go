@@ -26,3 +26,5 @@ func main() {
 
 	http.ListenAndServe(":8080", nil)
 }
+
+// git push -u origin <branch>

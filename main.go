@@ -1,30 +1,50 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log"
+	"microservice/handlers"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"golang.org/x/net/context"
 )
 
 func main() {
-	http.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		log.Println("Hello, world!")
+	l := log.New(os.Stdout, "product-api: ", log.LstdFlags)
+	hh := handlers.NewHello(l)
+	gh := handlers.NewGoodBye(l)
 
-		data, err := io.ReadAll(r.Body)
+	sm := http.NewServeMux()
+	sm.Handle("/", hh)
+	sm.Handle("/bye", gh)
+
+	// server configuration
+	server := &http.Server{
+		Addr:         ":8080",
+		Handler:      sm,
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+	}
+
+	go func() {
+		err := server.ListenAndServe()
 		if err != nil {
-			http.Error(rw, "Ooops", http.StatusBadRequest)
-			return
+			l.Fatal(err)
 		}
+	}()
 
-		fmt.Fprintf(rw, "Hello, %s\n", data)
-	})
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
 
-	http.HandleFunc("/bye", func(http.ResponseWriter, *http.Request) {
-		log.Println("Goodbye, world!")
-	})
+	sig := <-sigChan
+	l.Println("Received signal, graceful shutdown", sig)
 
-	http.ListenAndServe(":8080", nil)
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	server.Shutdown(ctx)
 }
 
 // git push -u origin <branch>

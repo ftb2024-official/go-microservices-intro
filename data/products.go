@@ -2,6 +2,7 @@ package data
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 )
@@ -21,6 +22,11 @@ type Product struct {
 // Products is a collection of Product
 type Products []*Product
 
+func (p *Product) FromJSON(r io.Reader) error {
+	dec := json.NewDecoder(r)
+	return dec.Decode(p)
+}
+
 // TOJSON serializes the contents of the collection to JSON
 // NewEncoder provides better performance than json.Unmarshal as it doesn't have to buffer the output into memory; this reduces allocations and
 // the overheads of the service
@@ -31,6 +37,57 @@ func (p *Products) ToJSON(w io.Writer) error {
 
 func GetProducts() Products {
 	return productList
+}
+
+func AddProduct(p *Product) {
+	p.ID = nextID()
+	productList = append(productList, p)
+}
+
+func UpdateProduct(id int, p *Product) error {
+	prod, pos, err := findProduct(id)
+	if err != nil {
+		return err
+	}
+
+	p.ID = id
+
+	if p.Name == "" {
+		p.Name = prod.Name
+	}
+
+	if p.Description == "" {
+		p.Description = prod.Description
+	}
+
+	if p.SKU == "" {
+		p.SKU = prod.SKU
+	}
+
+	if p.Price == 0 {
+		p.Price = prod.Price
+	}
+
+	productList[pos] = p
+
+	return nil
+}
+
+var ErrProductNotFound = fmt.Errorf("Product not found")
+
+func findProduct(id int) (*Product, int, error) {
+	for idx, prod := range productList {
+		if prod.ID == id {
+			return prod, idx, nil
+		}
+	}
+
+	return nil, -1, ErrProductNotFound
+}
+
+func nextID() int {
+	lastProduct := productList[len(productList)-1]
+	return lastProduct.ID + 1
 }
 
 var productList = []*Product{

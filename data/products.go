@@ -22,12 +22,14 @@ type Product struct {
 // Products is a collection of Product
 type Products []*Product
 
+var ErrProductNotFound = fmt.Errorf("Product not found")
+
 func (p *Product) FromJSON(r io.Reader) error {
 	dec := json.NewDecoder(r)
 	return dec.Decode(p)
 }
 
-// TOJSON serializes the contents of the collection to JSON
+// ToJSON serializes the contents of the collection to JSON
 // NewEncoder provides better performance than json.Unmarshal as it doesn't have to buffer the output into memory; this reduces allocations and
 // the overheads of the service
 func (p *Products) ToJSON(w io.Writer) error {
@@ -72,8 +74,6 @@ func UpdateProduct(id int, p *Product) error {
 
 	return nil
 }
-
-var ErrProductNotFound = fmt.Errorf("Product not found")
 
 func findProduct(id int) (*Product, int, error) {
 	for idx, prod := range productList {

@@ -4,16 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"time"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // Product defines the structure for an API product
 type Product struct {
 	ID          int     `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"desc"`
-	Price       float32 `json:"price"`
-	SKU         string  `json:"sku"`
+	Name        string  `json:"name" validate:"required,min=3"`
+	Description string  `json:"desc" validate:"required,min=3"`
+	Price       float32 `json:"price" validate:"required,gt=0"`
+	SKU         string  `json:"sku" validate:"required,sku"`
 	CreatedAt   string  `json:"-"`
 	UpdatedAt   string  `json:"-"`
 	DeletedAt   string  `json:"-"`
@@ -23,6 +26,23 @@ type Product struct {
 type Products []*Product
 
 var ErrProductNotFound = fmt.Errorf("Product not found")
+
+func (p *Product) Validate() error {
+	validate := validator.New()
+	err := validate.RegisterValidation("sku", validateSKU)
+	if err != nil {
+		return err
+	}
+
+	return validate.Struct(p)
+}
+
+func validateSKU(fl validator.FieldLevel) bool {
+	re := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
+	matches := re.FindAllString(fl.Field().String(), -1)
+
+	return len(matches) == 1
+}
 
 func (p *Product) FromJSON(r io.Reader) error {
 	dec := json.NewDecoder(r)
@@ -91,7 +111,7 @@ func nextID() int {
 }
 
 var productList = []*Product{
-	&Product{
+	{
 		ID:          1,
 		Name:        "Latte",
 		Description: "Frothy milky coffee",
@@ -100,7 +120,7 @@ var productList = []*Product{
 		CreatedAt:   time.Now().UTC().String(),
 		UpdatedAt:   time.Now().UTC().String(),
 	},
-	&Product{
+	{
 		ID:          2,
 		Name:        "Espresso",
 		Description: "Short and string coffee without milk",
